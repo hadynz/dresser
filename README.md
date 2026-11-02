@@ -3,7 +3,7 @@
 Exploring a web app for the Egyptian market where customers design a free-standing bedroom wardrobe
 (دولاب) in 3D, get an instant quote, and order it.
 
-- **Live proof of concept:** https://hadynz.github.io/dresser/
+- **Live proof of concept:** https://hady.geek.nz/dresser/
 - `poc/`: the proof of concept (see `poc/README.md`)
 - `docs/`: brief, decisions, open questions, feasibility and screenshots
 

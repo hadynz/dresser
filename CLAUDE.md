@@ -2,7 +2,7 @@
 
 Discovery phase. A proof of concept exists in `poc/` (see `poc/README.md`): React + TypeScript + Vite +
 React Three Fiber, Arabic-first, static build. Screenshots in `docs/poc-screenshots/`.
-Published at https://hadynz.github.io/dresser/ (GitHub Pages, deployed by `.github/workflows/pages.yml` on push to `main`).
+Published at https://hady.geek.nz/dresser/ (GitHub Pages, deployed by `.github/workflows/pages.yml` on push to `main`).
 Repo is **public**: never commit internal hostnames, IPs, credentials or personal details.
 This folder is the project's memory. Keep these files current as decisions are made:
 
