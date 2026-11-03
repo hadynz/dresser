@@ -16,13 +16,19 @@ One design object (`src/model/design.ts`) is the single source of truth:
 
 | File | Role |
 |---|---|
-| `model/design.ts` | The customer's choices, limits, construction constants, starter designs, `normalize()` |
-| `model/build.ts` | Design → list of physical parts (boards, rails, doors, drawers) + warnings |
+| `model/design.ts` | The customer's choices, standard widths, limits, construction constants, starter designs |
+| `model/layout.ts` | Fitting standard-width sections into the available width; shrink rule, suggestions |
+| `model/build.ts` | Design → physical parts (one unit per section, top cabinet, drawers, doors, LEDs) + warnings |
 | `model/pricing.ts` | Parts → crude EGP price. **All rates are guesses** in `RATES` |
 | `model/cutlist.ts` | Parts → grouped cut list for the workshop |
 | `three/Scene.tsx` | Parts → 3D (React Three Fiber). Doors and drawers animate open |
 | `i18n.ts` | Arabic (default, RTL) and English strings |
-| `App.tsx` | The form |
+| `history.ts` | Undo/redo; slider drags are one step and recompute from where the drag started |
+| `App.tsx` | Section strip, whole-wardrobe and per-section editors, price, workshop view |
+
+A wardrobe is a row of **sections**, each its own unit in a standard width (40/50/60/80/100 cm). The customer
+sets the available width; sections must fit inside it. Tap a section in 3D (or its tab) to edit it.
+The price and cut list at the bottom stand in for the future admin/workshop login.
 
 The current design is stored in the URL hash, so "Copy link" shares an exact design.
 

@@ -66,4 +66,5 @@ export const FIXED_MATERIALS = {
   mirror: new THREE.MeshStandardMaterial({ color: '#eef4f7', metalness: 1, roughness: 0.02, envMapIntensity: 1.1 }),
   glass: new THREE.MeshPhysicalMaterial({ color: '#cfe6ec', transparent: true, opacity: 0.22, roughness: 0.05, metalness: 0.1, depthWrite: false }),
   frosted: new THREE.MeshStandardMaterial({ color: '#f1f5f6', transparent: true, opacity: 0.8, roughness: 0.95 }),
+  led: new THREE.MeshStandardMaterial({ color: '#fff4dc', emissive: '#ffe2a8', emissiveIntensity: 2.2, toneMapped: false }),
 };

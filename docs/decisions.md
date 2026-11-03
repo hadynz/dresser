@@ -13,18 +13,20 @@
 | 2026-10-31 | POC uses the proposed defaults below (1–4 equal sections, preset interiors, hinged/sliding/none) | To be corrected by the workshop |
 | 2026-10-31 | Design shared via URL hash; no backend | Cheapest way to send a specific design to Egypt |
 | 2026-11-03 | Public GitHub repo `hadynz/dresser`, GitHub Pages | Free Pages needs a public repo (user chose public over paid private) |
-
-## Proposed defaults (not yet confirmed by user)
-- Structure: one carcass divided into **1–4 bays** (vertical sections), each bay gets its own preset interior.
-- Overall size (cm): width 80–300 (step 10), height 180–260 (step 5), depth 55–65 (step 5, default 60).
-  Bay width 40–100. Board 18 mm.
-- Drawers: fixed 20 cm fronts, 0–4 per bay, bottom of bay only.
-- Hanging rail: needs ≥ 100 cm clear (short hang) or ≥ 150 cm (long hang).
-- Bay presets: Long hang · Hang + drawers · Shelves · Double hang · Drawers + shelves.
-- Doors: none / hinged (1 or 2 per bay) / sliding (2–3 panels across full width, adds ~8 cm depth).
-  Panels: plain, mirror, clear glass, frosted glass. Handle choice later.
-- Pricing (all rates in one config file): panel area m² × material rate + per drawer + door area × panel-type
-  rate + per rail + flat hardware + flat delivery/install, × margin. Deposit % configurable (start 30%).
-- Stack: React + TypeScript + Vite, React Three Fiber (Three.js), Zustand state, i18next, Tailwind (RTL).
-- Prototype hosting: static on GitHub Pages; designs saved in the URL + browser storage; order request via
-  WhatsApp/lead form. Real payments need a small backend (Supabase/Cloudflare) and an Egyptian gateway (Paymob).
+| 2026-11-03 | Build dark mode | Momin's feedback |
+| 2026-11-03 | Keep cut list at the bottom of the demo, labelled as the admin/workshop experience | Demo value; real admin login later |
+| 2026-11-03 | **Sections are the core building block.** Start from a preset of 2–3 sections; customer adds/removes sections; tapping a section in 3D focuses editing on it | Construction is modular (Momin: 120 = 2 × 60) |
+| 2026-11-03 | Section widths come from a fixed list of standard widths (proposed 40/50/60/80/100, default 60; confirm with Momin) | Easier manufacturing |
+| 2026-11-03 | Customer sets **both** total width and section widths, both constrained: sections must fit inside the total width. Can't add a section unless there's room; widen the total first | User: e.g. 70 cm total fits one 60 section; 140 fits two 60s |
+| 2026-11-03 | Whole-wardrobe settings: height, depth, material, handle style, top-cabinet height. Per section: width, interior, drawers, shelves | Agreed |
+| 2026-11-03 | Hinged doors only for now (sliding dropped); a section's doors open when tapped | Sliding panels span sections, which breaks modularity |
+| 2026-11-03 | Add (copies last) / duplicate / remove / move left-right; max 6 sections | Agreed; duplicate = Momin's "repeat above" |
+| 2026-11-03 | Tap a section in 3D: highlight + form shows that section; camera stays put; "Whole wardrobe" tab to go back | Agreed |
+| 2026-11-03 | Keep the named starter designs (rebuilt from sections); open on a 2-section design | Shows range in demos |
+| 2026-11-03 | Dark mode follows the phone setting, with a toggle; 3D room darkens too (not black) | Agreed |
+| 2026-11-03 | Customer sees a simple price (size, extras, total); detailed breakdown + cut list sit at the bottom as the "Workshop view (admin only)" | Momin's feedback |
+| 2026-11-03 | **Lighting, mirrors etc. become accessories** the customer adds (not door finishes) | User |
+| 2026-11-03 | Leftover width: wardrobe is the sum of its sections, show "X cm of space left", and suggest a better fit (e.g. widen a section) | Respect the user's input, stay within standard sizes, suggest changes |
+| 2026-11-03 | "Add section" allowed whenever the space left ≥ the smallest standard width | Mixed widths are fine |
+| 2026-11-03 | Shrinking total width below the sections automatically narrows/removes sections, explained with a message, **with undo/redo** for every change | Permissive and creative; undo removes the risk of losing work |
+| 2026-11-03 | One height for the whole wardrobe (main body ≤ 240 cm + optional top cabinet 30/35/40/45) | Agreed |

@@ -47,3 +47,15 @@ export function Slider(props: {
     </label>
   );
 }
+
+export function Toggle(props: { label: string; checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button" role="switch" aria-checked={props.checked} disabled={props.disabled}
+      className={props.checked ? 'toggle on' : 'toggle'} onClick={() => props.onChange(!props.checked)}
+    >
+      <span className="knob" aria-hidden />
+      <span>{props.label}</span>
+    </button>
+  );
+}

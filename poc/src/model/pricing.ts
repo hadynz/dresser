@@ -1,6 +1,6 @@
 // Crude placeholder pricing (EGP). Every number here is a guess to be replaced with real
-// workshop costs. Price = materials + hardware + labour % + delivery, then a margin.
-import type { Design, MaterialId } from './design';
+// workshop costs. Selling price of anything = cost × (1 + labour) × (1 + margin).
+import { sectionsWidth, type Design, type MaterialId } from './design';
 import type { Build, Part } from './build';
 
 export const RATES = {
@@ -11,9 +11,10 @@ export const RATES = {
   frostedPerM2: 1150,
   drawerKit: 650, // runners + fixings per drawer
   hinge: 120,
-  slidingTrackPerM: 1800,
   railPerM: 250,
   handle: 90,
+  ledPerM: 250, // LED profile incl. diffuser
+  ledDriver: 250, // per lit section (driver + door sensor)
   labourPct: 0.4,
   delivery: 1500,
   marginPct: 0.25,
@@ -28,42 +29,59 @@ export const faceArea = (p: Part) => {
 };
 
 export interface PriceLine { key: string; amount: number; vars?: Record<string, number> }
-export interface Quote { lines: PriceLine[]; total: number; deposit: number }
+export interface Quote {
+  customer: PriceLine[]; // what the customer sees
+  workshop: PriceLine[]; // full cost breakdown (admin only)
+  total: number;
+  deposit: number;
+}
+
+const round10 = (v: number) => Math.round(v / 10) * 10;
 
 export function quote(d: Design, b: Build): Quote {
   const sum = (f: (p: Part) => boolean) => b.parts.filter(f).reduce((s, p) => s + faceArea(p), 0);
-  const boardArea = sum((p) => p.cut && p.finish === 'body');
-  const backArea = sum((p) => p.finish === 'back');
-  const glassCost =
-    sum((p) => p.finish === 'mirror') * RATES.mirrorPerM2 +
-    sum((p) => p.finish === 'glass') * RATES.glassPerM2 +
-    sum((p) => p.finish === 'frosted') * RATES.frostedPerM2;
-  const drawers = d.bays.reduce((s, bay) => s + bay.drawers, 0);
-  const hingesPerLeaf = d.height > 200 ? 4 : 3;
-  const railM = b.parts.filter((p) => p.kind === 'rail').reduce((s, p) => s + p.size[0] / 100, 0);
-  const handles = b.parts.filter((p) => p.kind === 'handle' && p.finish === 'metal').length;
+  const count = (f: (p: Part) => boolean) => b.parts.filter(f).length;
 
-  const materials: PriceLine[] = [
-    { key: 'line.boards', amount: boardArea * RATES.boardPerM2[d.material], vars: { area: Math.round(boardArea * 10) / 10 } },
-    { key: 'line.back', amount: backArea * RATES.backPerM2 },
-    { key: 'line.glass', amount: glassCost },
-    { key: 'line.drawers', amount: drawers * RATES.drawerKit },
-    { key: 'line.hinges', amount: b.leaves * hingesPerLeaf * RATES.hinge },
-    { key: 'line.sliding', amount: d.doorType === 'sliding' ? (d.width / 100) * RATES.slidingTrackPerM : 0 },
-    { key: 'line.rails', amount: railM * RATES.railPerM },
-    { key: 'line.handles', amount: handles * RATES.handle },
-  ].filter((l) => l.amount > 0);
+  const boards = sum((p) => p.cut && p.finish === 'body') * RATES.boardPerM2[d.material];
+  const back = sum((p) => p.finish === 'back') * RATES.backPerM2;
+  const mirror = sum((p) => p.finish === 'mirror') * RATES.mirrorPerM2;
+  const glass = sum((p) => p.finish === 'glass') * RATES.glassPerM2 + sum((p) => p.finish === 'frosted') * RATES.frostedPerM2;
+  const drawers = d.sections.reduce((s, x) => s + x.drawers, 0) * RATES.drawerKit;
+  const hinges = b.hinges * RATES.hinge;
+  const rails = b.parts.filter((p) => p.kind === 'rail').reduce((s, p) => s + p.size[0] / 100, 0) * RATES.railPerM;
+  const handles = count((p) => p.kind === 'handle' && p.finish === 'metal') * RATES.handle;
+  const litSections = d.sections.filter((s) => s.light).length;
+  const led = b.parts.filter((p) => p.kind === 'led').reduce((s, p) => s + p.size[1] / 100, 0) * RATES.ledPerM + litSections * RATES.ledDriver;
 
-  const materialsTotal = materials.reduce((s, l) => s + l.amount, 0);
-  const labour = materialsTotal * RATES.labourPct;
-  const cost = materialsTotal + labour + RATES.delivery;
-  const margin = cost * RATES.marginPct;
-  const lines = [
-    ...materials,
+  const sell = (cost: number) => cost * (1 + RATES.labourPct) * (1 + RATES.marginPct);
+  const base = boards + back + drawers + hinges + rails + handles;
+  const mirrors = d.doorType === 'hinged' ? d.sections.filter((s) => s.front === 'mirror').length : 0;
+  const glassDoors = d.doorType === 'hinged' ? d.sections.filter((s) => s.front === 'glass' || s.front === 'frosted').length : 0;
+
+  const customer: PriceLine[] = ([
+    { key: 'cust.wardrobe', amount: sell(base), vars: { w: sectionsWidth(d), h: b.totalHeight } },
+    { key: 'cust.led', amount: sell(led), vars: { n: litSections } },
+    { key: 'cust.mirror', amount: sell(mirror), vars: { n: mirrors } },
+    { key: 'cust.glass', amount: sell(glass), vars: { n: glassDoors } },
+    { key: 'line.delivery', amount: RATES.delivery },
+  ] as PriceLine[]).filter((l) => l.amount > 0).map((l) => ({ ...l, amount: round10(l.amount) }));
+  const total = Math.round(customer.reduce((s, l) => s + l.amount, 0) / 50) * 50;
+
+  const materials = boards + back + mirror + glass + drawers + hinges + rails + handles + led;
+  const labour = materials * RATES.labourPct;
+  const workshop: PriceLine[] = [
+    { key: 'line.boards', amount: boards, vars: { area: Math.round(sum((p) => p.cut && p.finish === 'body') * 10) / 10 } },
+    { key: 'line.back', amount: back },
+    { key: 'line.glass', amount: mirror + glass },
+    { key: 'line.drawers', amount: drawers },
+    { key: 'line.hinges', amount: hinges },
+    { key: 'line.rails', amount: rails },
+    { key: 'line.handles', amount: handles },
+    { key: 'line.led', amount: led },
     { key: 'line.labour', amount: labour },
     { key: 'line.delivery', amount: RATES.delivery },
-    { key: 'line.margin', amount: margin },
-  ].map((l) => ({ ...l, amount: Math.round(l.amount / 10) * 10 }));
-  const total = Math.round((cost + margin) / 50) * 50;
-  return { lines, total, deposit: Math.round((total * RATES.depositPct) / 50) * 50 };
+    { key: 'line.margin', amount: (materials + labour) * RATES.marginPct },
+  ].filter((l) => l.amount > 0).map((l) => ({ ...l, amount: round10(l.amount) }));
+
+  return { customer, workshop, total, deposit: Math.round((total * RATES.depositPct) / 50) * 50 };
 }

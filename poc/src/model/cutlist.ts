@@ -3,6 +3,7 @@ import type { Build, Finish, PartKind } from './build';
 
 export interface CutRow {
   kind: PartKind;
+  zone: 'main' | 'top';
   finish: Finish;
   qty: number;
   length: number; // cm
@@ -17,10 +18,10 @@ export function cutList(b: Build): CutRow[] {
   for (const p of b.parts) {
     if (!p.cut) continue;
     const [l, w, t] = [...p.size].sort((x, y) => y - x).map(round);
-    const key = `${p.kind}|${p.finish}|${l}|${w}|${t}`;
+    const key = `${p.zone}|${p.kind}|${p.finish}|${l}|${w}|${t}`;
     const row = rows.get(key);
     if (row) row.qty++;
-    else rows.set(key, { kind: p.kind, finish: p.finish, qty: 1, length: l, width: w, thickness: Math.round(t * 10) });
+    else rows.set(key, { kind: p.kind, zone: p.zone, finish: p.finish, qty: 1, length: l, width: w, thickness: Math.round(t * 10) });
   }
-  return [...rows.values()];
+  return [...rows.values()].sort((a, b) => (a.zone === b.zone ? 0 : a.zone === 'main' ? -1 : 1));
 }

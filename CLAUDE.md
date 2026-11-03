@@ -10,5 +10,7 @@ This folder is the project's memory. Keep these files current as decisions are m
 - `docs/decisions.md`: dated decisions log (what, why, alternatives rejected)
 - `docs/open-questions.md`: questions waiting on the user; move answered ones into brief/decisions
 - `docs/feasibility.md`: technical feasibility assessment (written after discovery)
+- `docs/feedback/`: dated feedback rounds (summaries). Raw transcripts and other private material go in
+  `private/` (git-ignored, because the repo is public)
 
 Working style: ask clarifying questions before designing; record answers here as soon as they are given.
