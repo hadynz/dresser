@@ -59,7 +59,15 @@ const en = {
   'acc.glass': 'Glass door',
   'glass.glass': 'Clear',
   'glass.frosted': 'Frosted',
-  applyAll: 'Apply to all sections',
+  applyTo: 'Apply to sections…',
+  applyTitle: 'Apply “{name}” to',
+  allSections: 'All sections',
+  thisSection: 'this one',
+  apply: 'Apply',
+  cancel: 'Cancel',
+  applied: 'Applied to {n} sections',
+  accOptions: '{name} options',
+  glassType: 'Glass type',
   needsDoors: 'Needs doors',
   doors: 'Doors',
   'door.hinged': 'Hinged doors',
@@ -193,7 +201,15 @@ const ar: Dict = {
   'acc.glass': 'ضلفة زجاج',
   'glass.glass': 'شفاف',
   'glass.frosted': 'مصنفر',
-  applyAll: 'طبّقها على كل الأقسام',
+  applyTo: 'طبّق على أقسام…',
+  applyTitle: 'طبّق «{name}» على',
+  allSections: 'كل الأقسام',
+  thisSection: 'القسم ده',
+  apply: 'تطبيق',
+  cancel: 'إلغاء',
+  applied: 'اتطبّقت على {n} أقسام',
+  accOptions: 'خيارات {name}',
+  glassType: 'نوع الزجاج',
   needsDoors: 'محتاجة ضلف',
   doors: 'الضلف',
   'door.hinged': 'ضلف بمفصلات',
@@ -278,7 +294,7 @@ export function makeT(lang: Lang) {
   const num = (v: number) => nf.format(v);
   const t = (key: string, vars: Record<string, unknown> = {}) =>
     ((dicts[lang] as Record<string, string>)[key] ?? key).replace(/\{(\w+)\}/g, (_, k) =>
-      typeof vars[k] === 'number' ? num(vars[k] as number) : `{${k}}`);
+      typeof vars[k] === 'number' ? num(vars[k] as number) : typeof vars[k] === 'string' ? (vars[k] as string) : `{${k}}`);
   return { t, num, money: (v: number) => money.format(v) };
 }
 

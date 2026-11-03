@@ -14,6 +14,7 @@ import { SWATCHES } from './three/materials';
 import { Segmented, Slider, Stepper, Toggle } from './ui/controls';
 import { Menu, type MenuItem } from './ui/Menu';
 import { Icon } from './ui/icons';
+import { Picker } from './ui/Picker';
 
 const fit = (d: Partial<Design>) => fitToSpace(sanitize(d)).design;
 const starterDesign = (id: string) => fit(structuredClone(STARTERS.find((s) => s.id === id)!.design));
@@ -95,9 +96,9 @@ export default function App() {
   const setSections = (sections: Section[]) => commit({ ...design, sections });
   const updateSection = (i: number, patch: Partial<Section>) =>
     setSections(design.sections.map((s, j) => (j === i ? { ...s, ...patch } : s)));
-  const applyToAll = (i: number, keys: (keyof Section)[]) => {
-    const src = design.sections[i];
-    setSections(design.sections.map((s) => ({ ...s, ...Object.fromEntries(keys.map((k) => [k, src[k]])) })));
+  const applyTo = (targets: number[], patch: (s: Section) => Partial<Section>) => {
+    setSections(design.sections.map((s, j) => (targets.includes(j) ? { ...s, ...patch(s) } : s)));
+    setToast({ changes: [], text: t.t('applied', { n: targets.length }), undo: true, id: Date.now() });
   };
 
   const setSpace = (space: number) => {
@@ -223,7 +224,7 @@ export default function App() {
         ) : (
           <SectionEditor
             key={design.sections[selected].id} design={design} i={selected} t={t}
-            update={(patch) => updateSection(selected, patch)} applyToAll={(keys) => applyToAll(selected, keys)}
+            update={(patch) => updateSection(selected, patch)} applyTo={applyTo}
           />
         )}
 
@@ -389,9 +390,11 @@ function WardrobeEditor(props: {
 }
 
 function SectionEditor(props: {
-  design: Design; i: number; t: T; update: (patch: Partial<Section>) => void; applyToAll: (keys: (keyof Section)[]) => void;
+  design: Design; i: number; t: T; update: (patch: Partial<Section>) => void;
+  applyTo: (targets: number[], patch: (s: Section) => Partial<Section>) => void;
 }) {
-  const { design, i, t, update, applyToAll } = props;
+  const { design, i, t, update, applyTo } = props;
+  const [picker, setPicker] = useState<null | { kind: 'glass' } | { kind: 'apply'; name: string; patch: (s: Section) => Partial<Section> }>(null);
   const s = design.sections[i];
   const n = design.sections.length;
   const allowed = allowedWidths(design, i);
@@ -428,27 +431,70 @@ function SectionEditor(props: {
 
       <section>
         <h2>{t.t('accessories')}</h2>
-        <div className="accessory">
-          <Toggle label={t.t('acc.light')} checked={s.light} onChange={(light) => update({ light })} />
-          {n > 1 && <button type="button" className="link" onClick={() => applyToAll(['light'])}>{t.t('applyAll')}</button>}
-        </div>
-        <div className="accessory">
-          <Toggle label={t.t('acc.mirror')} checked={s.front === 'mirror'} disabled={!hasDoors} onChange={(on) => setFront(on ? 'mirror' : 'wood')} />
-          {!hasDoors ? <span className="muted">{t.t('needsDoors')}</span>
-            : n > 1 && <button type="button" className="link" onClick={() => applyToAll(['front'])}>{t.t('applyAll')}</button>}
-        </div>
-        <div className="accessory">
-          <Toggle label={t.t('acc.glass')} checked={glass} disabled={!hasDoors} onChange={(on) => setFront(on ? 'glass' : 'wood')} />
-          {!hasDoors ? <span className="muted">{t.t('needsDoors')}</span>
-            : n > 1 && <button type="button" className="link" onClick={() => applyToAll(['front'])}>{t.t('applyAll')}</button>}
-        </div>
-        {glass && hasDoors && (
-          <Segmented
-            small value={s.front} onChange={setFront}
-            options={(['glass', 'frosted'] as Front[]).map((v) => ({ value: v, label: t.t(`glass.${v}`) }))}
-          />
-        )}
+        {(() => {
+          // Each accessory: toggle, its current option (if it has options), and a ⋮ menu.
+          const isGlass = (f: Front) => f === 'glass' || f === 'frosted';
+          const rows = [
+            {
+              key: 'light', label: t.t('acc.light'), on: s.light, needsDoors: false,
+              set: (on: boolean) => update({ light: on }),
+              patch: () => ({ light: s.light }),
+            },
+            {
+              key: 'mirror', label: t.t('acc.mirror'), on: s.front === 'mirror', needsDoors: true,
+              set: (on: boolean) => setFront(on ? 'mirror' : 'wood'),
+              patch: (x: Section) => (s.front === 'mirror' ? { front: 'mirror' as Front } : x.front === 'mirror' ? { front: 'wood' as Front } : {}),
+            },
+            {
+              key: 'glass', label: t.t('acc.glass'), on: glass, needsDoors: true,
+              set: (on: boolean) => setFront(on ? 'glass' : 'wood'),
+              patch: (x: Section) => (glass ? { front: s.front } : isGlass(x.front) ? { front: 'wood' as Front } : {}),
+              option: glass ? { label: t.t(`glass.${s.front}`), open: () => setPicker({ kind: 'glass' }) } : undefined,
+            },
+          ];
+          return rows.map((r) => {
+            const blocked = r.needsDoors && !hasDoors;
+            return (
+              <div className="accessory" key={r.key}>
+                <Toggle label={r.label} checked={r.on && !blocked} disabled={blocked} onChange={r.set} />
+                {blocked && <span className="muted">{t.t('needsDoors')}</span>}
+                {!blocked && r.option && (
+                  <button type="button" className="value-link" onClick={r.option.open}>
+                    {r.option.label}<Icon name="down" size={14} />
+                  </button>
+                )}
+                {!blocked && n > 1 && (
+                  <Menu
+                    label={t.t('accOptions', { name: r.label })} trigger={<Icon name="moreV" size={16} />} className="tab-menu"
+                    items={[{
+                      icon: <Icon name="copy" />, label: t.t('applyTo'),
+                      onSelect: () => setPicker({ kind: 'apply', name: r.label, patch: r.patch }),
+                    }]}
+                  />
+                )}
+              </div>
+            );
+          });
+        })()}
       </section>
+
+      {picker?.kind === 'glass' && (
+        <Picker<Front>
+          mode="single" title={t.t('glassType')} value={s.front} cancelLabel={t.t('cancel')} onClose={() => setPicker(null)}
+          options={(['glass', 'frosted'] as Front[]).map((v) => ({ value: v, label: t.t(`glass.${v}`) }))}
+          onPick={setFront}
+        />
+      )}
+      {picker?.kind === 'apply' && (
+        <Picker<number>
+          mode="multi" title={t.t('applyTitle', { name: picker.name })} cancelLabel={t.t('cancel')} applyLabel={t.t('apply')}
+          allLabel={t.t('allSections')} value={design.sections.map((_, j) => j)} onClose={() => setPicker(null)}
+          options={design.sections.map((x, j) => ({
+            value: j, label: t.t('section', { n: j + 1 }), hint: `${t.num(x.width)} ${t.t('cm')}${j === i ? ` · ${t.t('thisSection')}` : ''}`,
+          }))}
+          onApply={(targets) => applyTo(targets, picker.patch)}
+        />
+      )}
     </>
   );
 }

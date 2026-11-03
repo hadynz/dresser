@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface MenuItem {
@@ -20,6 +20,14 @@ export function Menu(props: { label: string; trigger: ReactNode; items: MenuItem
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const close = () => setRect(null);
+  const [top, setTop] = useState(0);
+
+  // Open below the button, or above it when there isn't room below (e.g. near the bottom of a phone screen).
+  useLayoutEffect(() => {
+    if (!rect || !menu.current) return;
+    const h = menu.current.offsetHeight;
+    setTop(rect.bottom + 6 + h > innerHeight - 8 && rect.top - 6 - h > 8 ? rect.top - 6 - h : rect.bottom + 6);
+  }, [rect]);
 
   useEffect(() => {
     if (!rect) return;
@@ -53,7 +61,7 @@ export function Menu(props: { label: string; trigger: ReactNode; items: MenuItem
       {rect && createPortal(
         <div
           ref={menu} className="menu" role="menu"
-          style={{ top: rect.bottom + 6, left: Math.min(Math.max(8, rect.right - WIDTH), innerWidth - WIDTH - 8), width: WIDTH }}
+          style={{ top, left: Math.min(Math.max(8, rect.right - WIDTH), innerWidth - WIDTH - 8), width: WIDTH }}
         >
           {props.note && <p className="menu-note">{props.note}</p>}
           {props.items.map((item) => (
