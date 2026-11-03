@@ -12,6 +12,8 @@ import { makeT, type Lang, type T } from './i18n';
 import { Scene, type ViewMode } from './three/Scene';
 import { SWATCHES } from './three/materials';
 import { Segmented, Slider, Stepper, Toggle } from './ui/controls';
+import { Menu, type MenuItem } from './ui/Menu';
+import { Icon } from './ui/icons';
 
 const fit = (d: Partial<Design>) => fitToSpace(sanitize(d)).design;
 const starterDesign = (id: string) => fit(structuredClone(STARTERS.find((s) => s.id === id)!.design));
@@ -55,8 +57,7 @@ export default function App() {
   const [mode, setMode] = useState<ViewMode>('closed');
   const [showDims, setShowDims] = useState(true);
   const [showClothes, setShowClothes] = useState(true);
-  const [copied, setCopied] = useState(false);
-  const [toast, setToast] = useState<{ changes: Change[]; id: number } | null>(null);
+  const [toast, setToast] = useState<{ changes: Change[]; text?: string; undo: boolean; id: number } | null>(null);
   const { dark, toggle: toggleDark } = useDarkMode();
   const panelRef = useRef<HTMLElement>(null);
 
@@ -89,7 +90,7 @@ export default function App() {
     return () => removeEventListener('keydown', onKey);
   }, [hist]);
 
-  const notify = (changes: Change[]) => { if (changes.length) setToast({ changes, id: Date.now() }); };
+  const notify = (changes: Change[]) => { if (changes.length) setToast({ changes, undo: true, id: Date.now() }); };
   const commit = (d: Design, group?: string) => hist.commit(d, group);
   const setSections = (sections: Section[]) => commit({ ...design, sections });
   const updateSection = (i: number, patch: Partial<Section>) =>
@@ -137,24 +138,31 @@ export default function App() {
   };
   const copyLink = async () => {
     await navigator.clipboard?.writeText(location.href).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setToast({ changes: [], text: t.t('copied'), undo: false, id: Date.now() });
   };
+  const sectionMenu = (i: number): MenuItem[] => [
+    { icon: <Icon name="left" />, label: t.t('moveLeft'), onSelect: () => moveSection(i, -1), disabled: i === 0 },
+    { icon: <Icon name="right" />, label: t.t('moveRight'), onSelect: () => moveSection(i, 1), disabled: i === design.sections.length - 1 },
+    { icon: <Icon name="copy" />, label: t.t('duplicate'), onSelect: () => addSection(i), disabled: !canAddSection(design) },
+    { icon: <Icon name="trash" />, label: t.t('remove'), onSelect: () => removeSection(i), disabled: design.sections.length === 1, danger: true },
+  ];
   const finishLabel = (f: string) => (f === 'body' ? t.t(`mat.${design.material}`) : t.t(`finishName.${f}`));
 
   return (
     <div className="app">
       <header className="topbar">
-        <div>
-          <h1>{t.t('title')}</h1>
-          <p className="muted">{t.t('poc')}</p>
-        </div>
+        <h1>{t.t('title')}</h1>
         <div className="topbar-actions">
-          <button type="button" className="icon" onClick={hist.undo} disabled={!hist.canUndo} title={t.t('undo')} aria-label={t.t('undo')}>↶</button>
-          <button type="button" className="icon" onClick={hist.redo} disabled={!hist.canRedo} title={t.t('redo')} aria-label={t.t('redo')}>↷</button>
-          <button type="button" className="icon" onClick={toggleDark} title={dark ? t.t('lightMode') : t.t('darkMode')} aria-label={dark ? t.t('lightMode') : t.t('darkMode')}>{dark ? '☀' : '☾'}</button>
-          <button type="button" className="ghost" onClick={copyLink}>{copied ? t.t('copied') : t.t('copyLink')}</button>
-          <button type="button" className="ghost" onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}>{t.t('lang')}</button>
+          <button type="button" className="icon" onClick={hist.undo} disabled={!hist.canUndo} title={t.t('undo')} aria-label={t.t('undo')}><Icon name="undo" /></button>
+          <button type="button" className="icon" onClick={hist.redo} disabled={!hist.canRedo} title={t.t('redo')} aria-label={t.t('redo')}><Icon name="redo" /></button>
+          <Menu
+            label={t.t('more')} trigger={<Icon name="moreH" size={20} />} note={t.t('poc')}
+            items={[
+              { icon: <Icon name="globe" />, label: t.t('lang'), onSelect: () => setLang(lang === 'ar' ? 'en' : 'ar') },
+              { icon: <Icon name={dark ? 'sun' : 'moon'} />, label: dark ? t.t('lightMode') : t.t('darkMode'), onSelect: toggleDark },
+              { icon: <Icon name="link" />, label: t.t('copyLink'), onSelect: copyLink },
+            ]}
+          />
         </div>
       </header>
 
@@ -184,16 +192,26 @@ export default function App() {
           <button type="button" className={selected === null ? 'tab on' : 'tab'} onClick={() => select(null)} dir="auto">
             {t.t('wardrobeTab')}
           </button>
-          {design.sections.map((s, i) => (
-            <button key={s.id} type="button" className={selected === i ? 'tab on' : 'tab'} onClick={() => select(i)}>
-              <bdi><strong>{t.num(i + 1)}</strong></bdi> <bdi className="muted">{t.num(s.width)}</bdi>
-            </button>
-          ))}
+          {design.sections.map((s, i) => {
+            const label = (
+              <>
+                <bdi><strong>{t.num(i + 1)}</strong></bdi> <bdi className="muted">{t.num(s.width)}</bdi>
+              </>
+            );
+            return selected === i ? (
+              <div key={s.id} className="tab on with-menu">
+                <span className="tab-label">{label}</span>
+                <Menu label={t.t('sectionOptions', { n: i + 1 })} trigger={<Icon name="moreV" size={16} />} className="tab-menu" items={sectionMenu(i)} />
+              </div>
+            ) : (
+              <button key={s.id} type="button" className="tab" onClick={() => select(i)}>{label}</button>
+            );
+          })}
           <button
             type="button" className="tab add" onClick={() => addSection()} disabled={!canAddSection(design)}
             title={t.t('addSection')} aria-label={t.t('addSection')}
           >
-            +
+            <Icon name="plus" size={16} />
           </button>
         </nav>
 
@@ -206,7 +224,6 @@ export default function App() {
           <SectionEditor
             key={design.sections[selected].id} design={design} i={selected} t={t}
             update={(patch) => updateSection(selected, patch)} applyToAll={(keys) => applyToAll(selected, keys)}
-            duplicate={() => addSection(selected)} remove={() => removeSection(selected)} move={(dir) => moveSection(selected, dir)}
           />
         )}
 
@@ -269,12 +286,13 @@ export default function App() {
       {toast && (
         <div className="toast" key={toast.id} role="status">
           <span>
+            {toast.text}
             {toast.changes.slice(0, 2).map((c, k) => (
               <bdi key={k} className="toast-item">{c.type === 'narrowed' ? t.t('change.narrowed', c) : t.t('change.removed', c)}</bdi>
             ))}
             {toast.changes.length > 2 && <bdi className="toast-item">{t.t('change.more', { n: toast.changes.length - 2 })}</bdi>}
           </span>
-          <button type="button" onClick={() => { hist.undo(); setToast(null); }}>{t.t('undo')}</button>
+          {toast.undo && <button type="button" onClick={() => { hist.undo(); setToast(null); }}>{t.t('undo')}</button>}
         </div>
       )}
     </div>
@@ -293,7 +311,7 @@ function WardrobeEditor(props: {
   const update = (patch: Partial<Design>, group?: string) => commit({ ...design, ...patch }, group);
   return (
     <>
-      <p className="muted hint">{t.t('tapHint')}</p>
+      <p className="muted hint desktop-only">{t.t('tapHint')}</p>
       <section>
         <h2>{t.t('starters')}</h2>
         <div className="starters">
@@ -372,9 +390,8 @@ function WardrobeEditor(props: {
 
 function SectionEditor(props: {
   design: Design; i: number; t: T; update: (patch: Partial<Section>) => void; applyToAll: (keys: (keyof Section)[]) => void;
-  duplicate: () => void; remove: () => void; move: (dir: -1 | 1) => void;
 }) {
-  const { design, i, t, update, applyToAll, duplicate, remove, move } = props;
+  const { design, i, t, update, applyToAll } = props;
   const s = design.sections[i];
   const n = design.sections.length;
   const allowed = allowedWidths(design, i);
@@ -386,12 +403,6 @@ function SectionEditor(props: {
       <section>
         <div className="section-head">
           <h2>{t.t('section', { n: i + 1 })} <bdi className="sub">{t.num(s.width)} {t.t('cm')}</bdi></h2>
-        </div>
-        <div className="actions" dir="ltr">
-          <button type="button" onClick={() => move(-1)} disabled={i === 0} title={t.t('moveLeft')} aria-label={t.t('moveLeft')}>←</button>
-          <button type="button" onClick={() => move(1)} disabled={i === n - 1} title={t.t('moveRight')} aria-label={t.t('moveRight')}>→</button>
-          <button type="button" onClick={duplicate} disabled={!canAddSection(design)}>{t.t('duplicate')}</button>
-          <button type="button" className="danger" onClick={remove} disabled={n === 1}>{t.t('remove')}</button>
         </div>
         <div className="field">
           <span>{t.t('sectionWidth')}</span>
